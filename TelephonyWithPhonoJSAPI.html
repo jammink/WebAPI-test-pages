@@ -1,0 +1,43 @@
+<html>
+  <head>
+    <script src="http://code.jquery.com/jquery-1.4.2.min.js"></script>
+    <script src="http://s.phono.com/releases/0.2/jquery.phono.js"></script>
+  </head>
+  <body>
+
+    <input id="call" type="button" disabled="true" value="Loading..." />
+    <span id="status"></span>
+
+    <script>
+    var PhoneNum;
+    PhoneNum= prompt("Please enter the number you wish to dial: ");
+    $(document).ready(function(){
+      //var PhoneNum = Prompt("Please enter the number you wish to dial: ");
+      var phono = $.phono({
+        apiKey: "128f785011209937a78fdfc3e9826e67",
+        onReady: function() {
+          $("#call").attr("disabled", false).val("Call");
+        }
+      });
+
+      $("#call").click(function() {
+        $("#call").attr("disabled", true).val("Busy");
+        //phono.phone.dial("985-655-2500", {
+        phono.phone.dial(PhoneNum, {
+          onRing: function() {
+            $("#status").html("Ringing");
+          },
+          onAnswer: function() {
+            $("#status").html("Answered");
+          },
+          onHangup: function() {
+            $("#call").attr("disabled", false).val("Call");
+            $("#status").html("Hangup");
+          }
+        });
+      });
+    })
+    </script>
+	<p>This page is a proof of concept -based on Phono.js proprietary library - for how we might want our own telephony API to work and look.</p>
+  </body>
+</html>

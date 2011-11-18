@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+	<script>
+		var b = navigator.mozBattery;
+
+		b.addEventListener("chargingchange", function() {
+			if (b.charging) {
+				alert("Charging!" + "\nLevel: " + b.level);
+				document.write("<h2>Shows level, charging state and related time for device battery.</h2>" + "<p>Level: " + b.level + "</p>" + "<p>Charging" + "<p>Charging Time: " + b.chargingTime + "</p>");
+			} else {
+			  alert("Unplugged!" + "\nLevel: " + b.level);
+			  document.write("<h2>Shows level, charging state and related time for device battery.</h2>" + "<p>Level: " + b.level + "</p>" + "<p>Discharging" + "<p>Discharging Time: " + b.dischargingTime + "</p>");
+			}
+		});
+
+		b.addEventListener("levelchange", function() {
+			alert("Level: " + b.level);
+	  });
+		/*if (b.charging) {
+			document.write("<h2>Shows level, charging state and related time for device battery.</h2>" + "<p>Level: " + b.level + "</p>" + "<p>Charging" + "<p>Charging Time: " + b.chargingTime + "</p>");
+		} else {
+			document.write("<h2>Shows level, charging state and related time for device battery.</h2>" + "<p>Level: " + b.level + "</p>" + "<p>Discharging" + "<p>Discharging Time: " + b.dischargingTime + "</p>");
+		};*/
+	</script>
+	<body>
+	</body>
+</html>

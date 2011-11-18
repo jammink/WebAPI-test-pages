@@ -1,0 +1,16 @@
+<html>
+   <head>
+     <!-- Runs as "#sender" in one instance, and "#receiver" in the other -->
+     <script type="text/javascript">
+       text = "hello";
+       if ("#sender" == location.hash)
+         navigator.sms.send(/*magic number*/, text);
+       else
+         window.addEventListener("smsreceived",
+                                 function(m) { assert(text == m.body); });
+     </script> 
+	</head>
+<body>
+	<p>Requires two instances. Runs as "Sender" in one instance, and "receiver" in the other. </p>
+	</body>
+</html>
