@@ -1,0 +1,33 @@
+<html>
+  <head>
+    <title>Camera Capture Demo</title>
+    <style>
+img {
+  border: 3px dotted pink;
+}
+    </style>
+    <script>
+function showPreview() {
+  var file = document.getElementById("chooser").files.item(0);
+  document.getElementById("info").innerHTML = "<span>" + file.name + " - " + file.type + " - " + file.size + " bytes</span>";
+  var img = document.getElementById("preview");
+  img.file = file;
+  var reader = new FileReader();
+  reader.onload = (function(aImg) { return function(e) { aImg.src = e.target.result; aImg.style.display = "block"}; })(img);
+  reader.readAsDataURL(file);
+}
+    </script>
+  </head>
+  <body>
+    <h1>Camera Input Picker</h1>
+
+Choose file: <input id="chooser" type="file" accept="image/png" onchange="showPreview();"> </input>
+<br/>
+<p id="info"></p>
+<p>Camera API is a simple file picker that allows you two options: to browse a file from disk, or capture one directly from the device camera.</p>
+  Preview : <img id="preview" style="display:none;"/>
+  </body>
+</html>
+
+
+
