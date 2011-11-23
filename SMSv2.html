@@ -1,0 +1,48 @@
+<html>
+
+<head>
+  <title>SMS test page</title>
+  <script type="text/javascript">
+var logElt, msgElt, numElt;
+
+function load() {
+  logElt = document.getElementById("status");
+  msgElt = document.getElementById("msg");
+  numElt = document.getElementById("num");
+
+  window.addEventListener("smsreceived", recvSms, false);
+}
+
+function log(msg) {
+  logElt.innerHTML += msg +"\n";
+}
+
+function recvSms(e) {
+  var m = e.message;
+  var msg = m.body, num = m.sender;
+
+  log("Received SMS from "+ num +": '"+ msg +"'");
+}
+
+function sendSms() {
+  var msg = msgElt.value, num = numElt.value;
+
+  log("Sending SMS to "+ num +"; message '"+ msg +"' ...");
+
+  var r = navigator.mozSms.send(num, msg);
+  r.onSuccess = function() { log("  ... "+ r.message + " delivered!"); }
+  r.onError = function() { log("error :("); }
+
+  log("  ... request made ...");
+}
+  </script>
+</head>
+
+<body onload="load();">
+  <p><input id="num" type="text" value="5106845513"></input></p>
+  <p><input id="msg" type="text" value="Testing 1 2 3"></input></p>
+  <p><button onclick="sendSms();">Send</button></p>
+  <p><pre id="status"></pre></p>
+</body>
+
+</html>
