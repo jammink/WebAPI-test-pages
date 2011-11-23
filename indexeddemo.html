@@ -278,6 +278,11 @@ City: <input onchange="displayZipcodes(this.value)"></input>
 
 <p><i>You may need to start Chrome with --unlimited-quota-for-indexeddb</i></p>
 -->
-<p>requires http://people.mozilla.org/~jhammink/webapi_test_pages/zipcodes.csv - or a file like it!</P>
+	<p>Based on indexeddb example by David Flanagan.</P>
+	<p> To Enable, ensure the following settings:</p>
+	<p>in fennec => about:config</p>
+	<p>dom.indexedDB.enabled = true</p>
+	<p>dom.indexedDB.warningQuota = 5 </p>
+	<p>indexedDB.feature.enabled = true </p>
 </body>
 </html>

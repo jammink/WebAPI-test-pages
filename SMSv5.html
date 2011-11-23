@@ -1,0 +1,22 @@
+<html>
+   <head>
+     <!-- Runs as "#sender" in one instance, and "#receiver" in the other -->
+     <script type="text/javascript">
+       	num = prompt("Enter the number to where you want to SMS");
+       	text = "hello";
+       	navigator.mozSms.send(num, text);
+        navigator.mozSms.addEventListener("received", function(e) {
+  		alert(e.message);});
+     </script>
+</head>
+<body>
+<p>Sends and receives and SMS in the same browser instance. </p>
+<p> To Enable:</p>
+<p> Make sure you have installed a fennec build where the feature has landed, if not, try:</p>
+	<p> <a href ="http://people.mozilla.com/~jhammink/android_builds_4_testing_webapi/for_SMS_API/fennec-11.0a1.en-US.android-arm.apk">this build</a></p>
+<p>in fennec => about:config</p>
+<p>set dom.sms.enabled = true</p>
+<p>dom.sms.whitelist = http://people.mozilla.com</p>
+<p>Works only on phones with a working sim card</p>
+</body>
+</html>
