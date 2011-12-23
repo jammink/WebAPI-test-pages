@@ -1,0 +1,45 @@
+<html> <head>
+<title>Simple access of geolocation</title>
+<script>
+
+var hasAccepted = false;
+
+function check_geolocation(location) {
+  var d = document.getElementById("d");
+  d.innerHTML += "in check geolocation<br />";
+  if (location) { d.innerHTML += "Valid geolocation information found<br />" }
+
+  var coords = location.coords;
+d.innerHTML += "Coords: Latitude: " + coords.latitude + "<br />"
+d.innerHTML += "Coords: Longitude: " + coords.longitude + "<br />"
+d.innerHTML += "Coords: Altitude: " + coords.altitude + "<br />"
+d.innerHTML += "Coords: Accuracy: " + coords.accuracy + "<br />"
+d.innerHTML += "Coords: AltitudeAccuracy: " + coords.altitudeAccuracy + "<br />"
+d.innerHTML += "Coords: Heading: " + coords.heading + "<br />"
+d.innerHTML += "Coords: Speed: " + coords.speed + "<br />"
+
+  mapsurl = "http://maps.google.com/maps?f=q&source=s_q&hl=en&q=" + coords.latitude + ",+" + coords.longitude;
+  d.innerHTML += "<iframe name=map src=" + mapsurl + " width=80% height=80%></iframe>"
+
+}
+
+function successCallback(position) {
+  check_geolocation(position);
+}
+
+function accept() {
+  hasAccepted = true;
+}
+
+// one-shot position requests
+navigator.geolocation.getCurrentPosition(successCallback, null, null);
+
+setTimeout(accept, 50);
+
+</script>
+</head>
+<body>
+<div id="d">
+</body>
+</html>
+

@@ -1,0 +1,75 @@
+<html>
+ <head>
+  <style type="text/css">
+    #canvas { border: 1px solid DarkGray; }
+  </style>
+ <script>
+
+// radius of ball
+var r = 10;
+
+// center position of ball
+var x = 150;
+var y = 150;
+
+// size of the canvas (also set in the canvas tag. they should match)
+var WIDTH = 600;
+var HEIGHT = 600;
+
+var orientationData = { beta: 0, gamma: 0 };
+
+function init() {
+  // start watching orientation changes.
+  window.addEventListener("deviceorientation", function(event) {
+    orientationData = event;
+  }, true);
+
+  setInterval(function() {
+    draw();
+  }, 1000/30);
+}
+
+var lastTime = Date.now();
+
+function draw() {
+  var now = Date.now();
+  var diff = now-lastTime;
+  lastTime = now;
+  document.getElementById("debug").innerHTML = 'interval: ' + diff + ' ms, ' + JSON.stringify(orientationData);
+
+  // Simple/wrong conversion of the orientation to deltaX/deltaY. Sorry, physicists.
+  var mul = 10*diff;
+  var dx = mul*orientationData.gamma/90;
+  var dy = mul*orientationData.beta/90;
+
+  var ctx = document.getElementById("canvas").getContext("2d");
+
+  // clear the last place the ball was
+  ctx.clearRect(x-r-1 , y-r-1, x+r+1, y+r+1);
+
+  // prevent the ball from rolling outside on the X-axis
+  if ( (x + dx) < (WIDTH - r) && (x + dx) > r)
+    x += dx;
+
+  // prevent the ball from rolling outside on the Y-axis
+  if ((y + dy) < (HEIGHT - r) && (y + dy) > r)
+    y += dy;
+
+  // draw the ball
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI*2, true);
+  ctx.closePath();
+  ctx.fill();
+}
+
+
+ </script>
+ <body onload="init()">
+  <div id="canvascontainer">
+   <canvas id="canvas" width="600" height="600"></canvas>
+  </div>
+
+  <div id="debug">watch this space</div>
+this test page made by azakai, see https://bugzilla.mozilla.org/show_bug.cgi?id=615597
+ </body>
+</html>

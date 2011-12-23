@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<!--
+  Any copyright is dedicated to the Public Domain.
+  http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html>
+<head>
+  <title>Indexed Database Upgrade Test</title>
+
+  <style>
+  .success { color: green; font-weight: bold; }
+  .pass { color: green; display: none}
+  .error { color: red; }
+  .warning { color: orange; }
+  </style>
+
+  <script type="text/javascript;version=1.7">
+
+var gen;
+
+function ok(cond, msg) {
+  if (cond)
+    log("got truthy " + cond + " - " + msg, "pass");
+  else
+    log("expected truthy but got " + cond + " - " + msg, "error");
+}
+
+function is(actual, expected, msg) {
+  if (actual === expected)
+    log("got expected " + actual + " - " + msg, "pass");
+  else
+    log("expected " + expected + " but got " + actual + " - " + msg, "error");
+}
+
+function grabEventAndContinueHandler(event)
+{
+  gen.send(event);
+}
+
+function unexpectedSuccessHandler()
+{
+  ok(false, "Got success, but did not expect it!");
+  finishTest();
+}
+
+function errorHandler(event)
+{
+  ok(false, "indexedDB error, code " + event.target.errorCode);
+}
+
+var foundError = true;
+
+function finishTest() {
+  if (foundError)
+    log("There were errors", "error");
+  else
+    log("SUCCESS!!", "success");
+}
+
+function log(s, className) {
+  if (className === "error")
+    foundError = true;
+  var span = document.createElement("span");
+  span.className = className;
+  span.appendChild(document.createTextNode(s + "\n"));
+  document.getElementById("l").appendChild(span);
+}
+
+onerror = function(msg, file, line) {
+  log("Error occurred: <" + msg + "> in file " + file + ":" + line, "error");
+}
+
+let storeData
+  = [ { v: { r: /x/, u: undefined, a: [ false, "asdf", {}, [], /y/] }, k: -500 },
+      { v: { value: 1 }, k: 1 },
+      { v: { ix1: 5 }, k: 2 },
+      { v: { ix1: "Ko", z: false }, k: 3 },
+      { v: { ix1: "asdf", ix2: 10 }, k: 5 },
+      { v: { ix2: 17 }, k: 10 },
+      { v: { ix1: 5, ix2: "10" }, k: 100 },
+      { v: { ix2: "bo" }, k: 101 },
+      { v: "hello", k: 242 },
+      { v: undefined, k: 243 },
+      { v: { foo: "bar", x: { y: true } }, k: "foo" },
+      { v: { foo: "dd", y: { x: "i" } }, k: "zap" },
+    ];
+
+let ix1Data = [ { k: 5,      v: 2 },
+            { k: 5,      v: 100, d: true },
+            { k: "Ko",   v: 3 },
+            { k: "asdf", v: 5 },
+          ];
+
+let ix2Data = [ { k: 10,   v: 5 },
+            { k: 17,   v: 10 },
+            { k: "10", v: 100 },
+            { k: "bo", v: 101 }
+          ];
+
+function getDataFor(key) {
+  for (let i = 0; i < storeData.length; i++) {
+    if (storeData[i].k === key)
+      return storeData[i].v;
+  }
+  
+  ok(false, "unexpected key " + key);
+}
+
+function compareSC(o1, o2) {
+  let t = typeof o1;
+  if (t != typeof o2)
+    return false;
+
+  if (t !== "object" || o1 === null)
+    return o1 === o2;
+
+  if (o1 instanceof RegExp) {
+    return o2 instanceof RegExp &&
+           o1.toString() === o2.toString();
+  }
+
+  if (o1 instanceof Array) {
+    if (!(o2 instanceof Array) ||
+        o1.length != o2.length)
+      return false;
+    
+    for (let i = 0; i < o1.length; ++i) {
+      if (!compareSC(o1[i], o2[i]))
+        return false;
+    }
+    
+    return true;
+  }
+
+  let o1Keys = [];
+  for (let n in o1)
+    o1Keys.push(n);
+
+  let o2Keys = [];
+  for (let n in o2)
+    o2Keys.push(n);
+
+  if (o1Keys.length != o2Keys.length)
+    return false;
+
+  for (let i = 0; i < o1Keys.length; ++i)
+    if (o1Keys[i] != o2Keys[i] ||
+        !compareSC(o1[o1Keys[i]], o2[o1Keys[i]]))
+      return false;
+
+  return true;
+}
+
+function createDataGen()
+{
+  const dbname = "upgradeDB";
+  const RW = IDBTransaction.READ_WRITE;
+
+  let event;
+  let db;
+  let trans;
+  let openRequest;
+
+  if (hasNewVersion) {
+    openRequest = mozIndexedDB.open(dbname, 5);
+    openRequest.onerror = errorHandler;
+    openRequest.onupgradeneeded = grabEventAndContinueHandler;
+    openRequest.onsuccess = grabEventAndContinueHandler;
+    event = yield;
+    db = event.target.result;
+    if (event.type !== "upgradeneeded") {
+      log("Database already exists", "warning");
+      db.close();
+      yield;
+    }
+    trans = event.target.transaction;
+  }
+  else {
+    openRequest = mozIndexedDB.open(dbname);
+    openRequest.onerror = errorHandler;
+    openRequest.onsuccess = grabEventAndContinueHandler;
+    event = yield;
+    db = event.target.result;
+    if (db.version === "5") {
+      log("Database already exists", "warning");
+      db.close();
+      yield;
+    }
+    is(db.version, "", "Database doesn't exist");
+    
+    openRequest = db.setVersion("5");
+    openRequest.onerror = errorHandler;
+    openRequest.onsuccess = grabEventAndContinueHandler;
+    event = yield;
+    trans = openRequest.result;
+  }
+
+  db.onerror = errorHandler;
+
+  let stores = [];
+  stores.push(db.createObjectStore("store"));
+  stores.push(db.createObjectStore("store key", { keyPath: "id" }));
+  stores.push(db.createObjectStore("store ai", { autoIncrement: true }));
+  stores.push(db.createObjectStore("store ai key", { keyPath: "id", autoIncrement: true }));
+
+  for (var i = 0; i < 4; ++i) {
+    let store = stores[i];
+    store.createIndex("ix1", "ix1");
+    store.createIndex("ix2", "ix2", { unique: true });
+
+    for (var j = 0; j < storeData.length; ++j) {
+      let d = storeData[j];
+
+      if ((i >= 2 && (typeof d.k) === "string") ||
+          (store.keyPath && (typeof d.v) != "object"))
+        continue;
+
+      let k = i !== 3 ? d.k : (d.k + 1000);
+
+      if (store.keyPath) {
+        d.v.id = k;
+        store.add(d.v);
+        delete d.v.id;
+      }
+      else {
+        store.add(d.v, d.k);
+      }
+    }
+  }
+
+  if (hasNewVersion) {
+    openRequest.onsuccess = grabEventAndContinueHandler;
+    event = yield;
+    is(event.type, "success", "created database successfully");
+    is(event.target, openRequest, "correct target when creating");
+  }
+  else {
+    trans.oncomplete = grabEventAndContinueHandler;
+    event = yield;
+    is(event.type, "complete", "created database successfully");
+    is(event.target, trans, "correct target when creating");
+  }
+  
+  db.close();
+
+  finishTest();
+  yield;
+}
+
+function verifyDataGen()
+{
+  const dbname = "upgradeDB";
+  const RW = IDBTransaction.READ_WRITE;
+
+  let event;
+  let db;
+
+  if (hasNewVersion) {
+    let openRequest = mozIndexedDB.open(dbname);
+    openRequest.onerror = errorHandler;
+    openRequest.onupgradeneeded = errorHandler;
+    openRequest.onsuccess = grabEventAndContinueHandler;
+    event = yield;
+    db = event.target.result;
+    is(db.version, 5, "Database does exist");
+  }
+  else {
+    let openRequest = mozIndexedDB.open(dbname);
+    openRequest.onerror = errorHandler;
+    openRequest.onsuccess = grabEventAndContinueHandler;
+    event = yield;
+    db = event.target.result;
+    is(db.version, "5", "Database does exist");
+  }
+
+  db.onerror = errorHandler;
+
+  let storeNames = ["store", "store key", "store ai", "store ai key"];
+
+  let trans = db.transaction(storeNames, RW);
+  
+  let stores = [];
+  is(db.objectStoreNames.length, 4, "Has right number of objectStores");
+  for each (storeName in storeNames) {
+    ok(db.objectStoreNames.contains(storeName), "has store " + storeName);
+    let store = trans.objectStore(storeName);
+    stores.push(store);
+    is(store.indexNames.length, 2, "has right number of indexes");
+    is(store.indexNames[0], "ix1", "contains ix1");
+    is(store.indexNames[1], "ix2", "contains ix2");
+    is(store.index("ix1").unique, false, "ix1 is not unique");
+    is(store.index("ix2").unique, true, "ix2 is unique");
+  }
+
+
+  // Check existing store data
+  for (let storeIx = 0; storeIx < 4; ++storeIx) {
+    let store = stores[storeIx];
+    
+    // Check objectStore data
+    let storeCursorReq = store.openCursor();
+    storeCursorReq.onsuccess = grabEventAndContinueHandler;
+
+    for (let j = 0; j < storeData.length; ++j) {
+      let d = storeData[j];
+
+      if ((storeIx >= 2 && (typeof d.k) === "string") ||
+          (store.keyPath && (typeof d.v) != "object"))
+        continue;
+
+      let k = storeIx !== 3 ? d.k : (d.k + 1000);
+
+      if (store.keyPath) {
+        d.v.id = k;
+      }
+
+      event = yield;
+      is(event.target, storeCursorReq, "cursor event");
+      let cursor = event.target.result;
+      ok(cursor instanceof IDBCursor, "has cursor value");
+      is(cursor.key, k, "correct cursor key");
+      ok(compareSC(cursor.value, d.v), "correct cursor value");
+
+      store.get(k).onsuccess = grabEventAndContinueHandler;
+      event = yield;
+      ok(compareSC(event.target.result, d.v), "contains correct value");
+
+      if (store.keyPath) {
+        delete d.v.id;
+      }
+
+      cursor.continue();
+    }
+    
+    event = yield;
+    is(event.target, storeCursorReq, "cursor event");
+    is(event.target.result, undefined, "end of cursor");
+
+
+    // Check ix1 data
+    let index = store.index("ix1");
+    let indexCursorReq = index.openCursor();
+    indexCursorReq.onsuccess = grabEventAndContinueHandler;
+
+    for (let j = 0; j < ix1Data.length; ++j) {
+      let d = ix1Data[j];
+
+      let k = storeIx !== 3 ? d.v : (d.v + 1000);
+
+      let data = getDataFor(d.v);
+      if (store.keyPath) {
+        data.id = k;
+      }
+
+      event = yield;
+      is(event.target, indexCursorReq, "ix1 cursor event");
+      let cursor = event.target.result;
+      ok(cursor instanceof IDBCursor, "has ix1 cursor value");
+      is(cursor.key, d.k, "correct ix1 cursor key");
+      is(cursor.primaryKey, k, "correct ix1 cursor primary key");
+      ok(compareSC(cursor.value, data), "correct ix1 cursor value");
+
+      if (!d.d) {
+        index.getKey(d.k).onsuccess = grabEventAndContinueHandler;
+        event = yield;
+        is(event.target.result, k, "ix1 contains correct primary key");
+  
+        index.get(d.k).onsuccess = grabEventAndContinueHandler;
+        event = yield;
+        ok(compareSC(event.target.result, data), "ix1 contains correct value");
+      }
+
+      if (store.keyPath) {
+        delete data.id;
+      }
+
+      cursor.continue();
+    }
+    
+    event = yield;
+    is(event.target, indexCursorReq, "ix1 cursor event");
+    is(event.target.result, undefined, "end of ix1 cursor");
+
+
+    // Check ix2 data
+    index = store.index("ix2");
+    indexCursorReq = index.openCursor();
+    indexCursorReq.onsuccess = grabEventAndContinueHandler;
+
+    for (let j = 0; j < ix2Data.length; ++j) {
+      let d = ix2Data[j];
+
+      let k = storeIx !== 3 ? d.v : (d.v + 1000);
+
+      let data = getDataFor(d.v);
+      if (store.keyPath) {
+        data.id = k;
+      }
+
+      event = yield;
+      is(event.target, indexCursorReq, "ix2 cursor event");
+      let cursor = event.target.result;
+      ok(cursor instanceof IDBCursor, "has ix2 cursor value");
+      is(cursor.key, d.k, "correct ix2 cursor key");
+      is(cursor.primaryKey, k, "correct ix2 cursor primary key");
+      ok(compareSC(cursor.value, data), "correct ix2 cursor value");
+
+      if (!d.d) {
+        index.getKey(d.k).onsuccess = grabEventAndContinueHandler;
+        event = yield;
+        is(event.target.result, k, "ix2 contains correct primary key");
+  
+        index.get(d.k).onsuccess = grabEventAndContinueHandler;
+        event = yield;
+        ok(compareSC(event.target.result, data), "ix2 contains correct value");
+      }
+
+      if (store.keyPath) {
+        delete data.id;
+      }
+
+      cursor.continue();
+    }
+    
+    event = yield;
+    is(event.target, indexCursorReq, "ix2 cursor event");
+    is(event.target.result, undefined, "end of ix2 cursor");
+  }
+
+  // Test that stores are autoincrement/keypath as they should. We can't
+  // rely on .keyPath and .autoIncrement as they are wonky in some versions
+  let store = trans.objectStore("store");
+  store.add({}, "tmpVal").onsuccess = grabEventAndContinueHandler;
+  event = yield;
+  is(event.target.result, "tmpVal", "got right key");
+  store.delete("tmpVal");
+  let didThrow = false;
+  try {
+    store.add({}).onsuccess = grabEventAndContinueHandler;
+  }
+  catch(ex) {
+    didThrow = true;
+  }
+  is(didThrow, true, "no key should throw");
+
+  store = trans.objectStore("store ai");
+  store.add({ testing: "store ai" }).onsuccess = grabEventAndContinueHandler;
+  event = yield;
+  let key = event.target.result;
+  is(typeof key, "number", "generated a key");
+  store.get(key).onsuccess = grabEventAndContinueHandler;
+  event = yield;
+  is(JSON.stringify(event.target.result), JSON.stringify({ testing: "store ai" }), "No keyPath");
+  store.delete(key);
+
+  store = trans.objectStore("store key");
+  store.add({ id: "tmpVal2" }).onsuccess = grabEventAndContinueHandler;
+  event = yield;
+  is(event.target.result, "tmpVal2", "got right key");
+  store.delete("tmpVal2");
+  let didThrow = false;
+  try {
+    store.add({}).onsuccess = grabEventAndContinueHandler;
+  }
+  catch(ex) {
+    didThrow = true;
+  }
+  is(didThrow, true, "no key should throw");
+
+  store = trans.objectStore("store ai key");
+  store.add({ testing: "store ai key" }).onsuccess = grabEventAndContinueHandler;
+  event = yield;
+  key = event.target.result;
+  is(typeof key, "number", "generated a key");
+  store.get(key).onsuccess = grabEventAndContinueHandler;
+  event = yield;
+  is(JSON.stringify(event.target.result), JSON.stringify({ testing: "store ai key", id: key }), "Has keyPath");
+  store.delete(key);
+
+  db.close();
+
+  finishTest();
+  yield;
+}
+
+
+var hasNewVersion = !("setVersion" in IDBDatabase.prototype);
+
+function createData() {
+  foundError = false;
+  gen = createDataGen();
+  gen.next();
+}
+
+function verifyData() {
+  foundError = false;
+  gen = verifyDataGen();
+  gen.next();
+}
+
+  </script>
+</head>
+
+<body>
+  <p>Page to test upgrading of data between different versions of firefox:</p>
+  <ol>
+    <li>Load this page in one version of Firefox.
+    <li>Click the "Create Database" button.
+    <li>Check that you get only a "Success" message and no error messages in red.
+    <li>Click the "Verify Database" button if desired and check that it only outputs a "Success" message.
+    <li>Close Firefox.
+    <li>Open Newer version of Firefox.
+    <li>Click "Verify Database" button.
+    <li>Check that you get only a "Success" message and no error messages in red.
+    <li>Repeat for any newer version of firefox you want to test.
+  </ol>
+
+  <p>Note! "Downgrading" does not work. I.e. you can't run the testpage in a new version and then a older version.</p>
+  <button onclick="createData('hi');">Create Database</button>
+  <button onclick="verifyData();">Verify Database</button>
+  <pre id=l></pre>
+</body>
+</html>
